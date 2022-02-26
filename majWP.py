@@ -76,9 +76,30 @@ def compare_versions(listeSites,racine):
 
 def menage(bkdir):
     print('----')
-    shutil.rmtree(bkdir,'ignore_errors')
-    os.mkdir(bkdir)
-    print("Suppression des sauvegardes ok")
+    print("backupdir : ",bkdir)
+    lstdir = os.listdir(bkdir)
+    if lstdir == [] :
+        print("Il n'y a pas de sauvegarde actuellement")
+    else:
+        while lstdir != []:
+            print("Voici la liste des sauvegardes : ")
+            i = 1
+            for dr in lstdir :
+                print(i," - ",lstdir[i-1])
+                i += 1
+            numsauv = input("Quelle sauvegarde souhaitez-vous supprimer (numéro) ou 0 pour sortir ? ")
+            if int(numsauv) < i and int(numsauv) > 0:
+                index = int(numsauv)-1
+                print("Sauvegarde à supprimer : ",lstdir[index])
+                chemsauv = os.path.join(bkdir,lstdir[index])
+                shutil.rmtree(chemsauv,'ignore_errors')
+                lstdir = os.listdir(bkdir)
+            elif int(numsauv) == 0 :
+                print("Aucune sauvegarde ne sera supprimée.")
+                lstdir = []
+            else:
+                print("Cette sauvegarde n'existe pas.")
+
     verif_free_space(bkdir)
 
 def downloadWP(tempdir,wpdir):
@@ -103,6 +124,17 @@ def backupsites(bkupdir,siteslist):
     today = datetime.date.today()
     tod = today.strftime('%d-%m-%Y')
     print("Début de sauvegarde du "+tod)
+    #verif taille dispo suffisante
+    freebk = verif_free_space(bkupdir)
+    usedsites = 0
+    for site in siteslist:
+        src = siteslist[site]['chem']
+        usedsites += verif_taille_sites(src)
+    if usedsites < freebk :
+        print("Espace suffisant pour la sauvegarde.")
+    else:
+        print("Espace insuffisant pour la sauvegarde, risque de crash. Sortie du script !")
+        sys.exit()
     newbkup = os.path.join(bkupdir,tod)
     while os.path.isdir(newbkup)==True:
         newbkup = newbkup+"i"
@@ -212,19 +244,38 @@ def rmoldf(listeSites):
 
 def verif_free_space(racine):
     print('----')
-    stat = os.statvfs(racine)
-    freespace = stat.f_bfree*stat.f_bsize
+    stat = shutil.disk_usage(racine)
+    freespace = stat.free
     freespacek = freespace/1024
     freespacem = freespacek/1024
     freespaceg = freespacem/1024
     if freespaceg > 1:
-        print("Espace libre : ",'%.2f' %freespaceg," Go")
+        print("Espace libre dans "+racine+" : ",'%.2f' %freespaceg," Go")
     elif freespacem > 1:
-        print("Espace libre : ",'%.2f' %freespacem," Mo")
+        print("Espace libre dans "+racine+" : ",'%.2f' %freespacem," Mo")
     elif freespacek > 1 :
-        print("Attention espace libre : ",'%.2f' %freespacek," ko !!!!!!!!!!!")
+        print("Attention espace libre dans "+racine+" : ",'%.2f' %freespacek," ko !!!!!!!!!!!")
     elif freespace > 1 :
-        print("Attention espcae libre ",'%.2f' %freespace," octets !!!!!!!")
+        print("Attention espace libre dans "+racine+" : ",'%.2f' %freespace," octets !!!!!!!")
+    return freespace
+
+def verif_taille_sites(racine):
+    #verifie la taille occupée par les sites pour assurer les sauvegardes
+    sitespace = 0
+    for root, dirs, files in os.walk(racine):
+        sitespace += sum(os.path.getsize(os.path.join(root, name)) for name in files)
+    sitespacek = sitespace/1024
+    sitespacem = sitespacek/1024
+    sitespaceg = sitespacem/1024
+    if sitespaceg > 1:
+        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespaceg," Go")
+    elif sitespacem > 1:
+        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespacem," Mo")
+    elif sitespacek > 1 :
+        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespacek," ko")
+    elif sitespace > 1 :
+        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespace," octets")
+    return sitespace
 
 def updateWP(listeSites,racine):
     print('++++----++++')
@@ -293,6 +344,8 @@ def main(argv):
     fptemp = os.path.join(racine,'temp')
     fpwordpress = os.path.join(racine,'wordpress')
     fpbackup = os.path.join(racine,'backup')
+    #verif espace dans backup
+    verif_free_space(fpbackup)
     #supprime et recree le repertoire temp
     shutil.rmtree(fptemp,'ignore_errors')
     os.mkdir(fptemp)
