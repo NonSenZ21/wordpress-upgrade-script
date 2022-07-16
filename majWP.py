@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-#-*-coding: utf-8 -*-
+# -*-coding: utf-8 -*-
 
 
-'''Script d'administration en Python
+"""Script d'administration en Python
 Usage : python majWP.py [options] [paramètres]
 Options :
     -h --help ->aide
@@ -16,13 +16,14 @@ Options :
     -r --restore ->restaure les sites avec les sauvegardes effectuées
 
     Exemples :
-    
-    ./majWP.py -abcd 
-        realise la suppression de toutes les sauvegardes, sauvegarde les fichiers et bases de donnees, telecharge la derniere version de Wordpress pour tous les sites
+
+    ./majWP.py -abcd
+        realise la suppression de toutes les sauvegardes, sauvegarde les fichiers et bases de donnees, telecharge
+         la derniere version de Wordpress pour tous les sites
 
     ./majWP.py -f /home/sites.conf
         precise le chemin du fichier de configuration
-'''
+"""
 import getopt
 import sys
 import wget
@@ -33,8 +34,10 @@ import datetime
 from configobj import ConfigObj
 import re
 
+
 def usage():
-    print( __doc__ )
+    print(__doc__)
+
 
 def init_sites(sitesf):
     listeSites = {}
@@ -44,6 +47,7 @@ def init_sites(sitesf):
             listeSites[site] = configSites[site]
     return listeSites
 
+
 def recup_version(ficVersion):
     define_pattern = re.compile(r"""\bdefine\(\s*('|")(.*)\1\s*,\s*('|")(.*)\3\)\s*;""")
     assign_pattern = re.compile(r"""(^|;)\s*\$([a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*)\s*=\s*('|")(.*)\3\s*;""")
@@ -51,50 +55,52 @@ def recup_version(ficVersion):
     php_vars = {}
     for line in open(ficVersion):
         for match in define_pattern.finditer(line):
-            php_vars[match.group(2)]=match.group(4)
+            php_vars[match.group(2)] = match.group(4)
         for match in assign_pattern.finditer(line):
-            php_vars[match.group(2)]=match.group(4)
+            php_vars[match.group(2)] = match.group(4)
 
     return php_vars['wp_version']
 
-def compare_versions(listeSites,racine):
+
+def compare_versions(listeSites, racine):
     print('----')
-    newwp = os.path.join(racine,"wordpress")
-    if os.path.isdir(newwp)==True:
-        chemnewver = os.path.join(racine,'wordpress/wp-includes/version.php')
+    newwp = os.path.join(racine, "wordpress")
+    if os.path.isdir(newwp) is True:
+        chemnewver = os.path.join(racine, 'wordpress/wp-includes/version.php')
         newver = recup_version(chemnewver)
-        print("Nouvelle version : ",newver)
+        print("Nouvelle version : ", newver)
     else:
         print("Aucune version de Wordpress n'est présente, utilisez l'option -d.")
         print('----')
         print('Fin anticipée du script.')
         sys.exit(0)
     for site in listeSites:
-        chever = os.path.join(listeSites[site]['chem'],'wordpress/wp-includes/version.php')
+        chever = os.path.join(listeSites[site]['chem'], 'wordpress/wp-includes/version.php')
         versite = recup_version(chever)
-        print("Version du site",listeSites[site]['name']," : ",versite)
+        print("Version du site", listeSites[site]['name'], " : ", versite)
+
 
 def menage(bkdir):
     print('----')
-    print("backupdir : ",bkdir)
+    print("backupdir : ", bkdir)
     lstdir = os.listdir(bkdir)
-    if lstdir == [] :
+    if not lstdir:
         print("Il n'y a pas de sauvegarde actuellement")
     else:
-        while lstdir != []:
+        while lstdir:
             print("Voici la liste des sauvegardes : ")
             i = 1
-            for dr in lstdir :
-                print(i," - ",lstdir[i-1])
+            for dr in lstdir:
+                print(i, " - ", lstdir[i - 1])
                 i += 1
             numsauv = input("Quelle sauvegarde souhaitez-vous supprimer (numéro) ou 0 pour sortir ? ")
             if int(numsauv) < i and int(numsauv) > 0:
-                index = int(numsauv)-1
-                print("Sauvegarde à supprimer : ",lstdir[index])
-                chemsauv = os.path.join(bkdir,lstdir[index])
-                shutil.rmtree(chemsauv,'ignore_errors')
+                index = int(numsauv) - 1
+                print("Sauvegarde à supprimer : ", lstdir[index])
+                chemsauv = os.path.join(bkdir, lstdir[index])
+                shutil.rmtree(chemsauv, True)
                 lstdir = os.listdir(bkdir)
-            elif int(numsauv) == 0 :
+            elif int(numsauv) == 0:
                 print("Aucune sauvegarde ne sera supprimée.")
                 lstdir = []
             else:
@@ -102,236 +108,248 @@ def menage(bkdir):
 
     verif_free_space(bkdir)
 
-def downloadWP(tempdir,wpdir):
+
+def downloadWP(tempdir, wpdir):
     print('----')
     print("Suppression de l'ancienne version de Wordpress")
-    #supprime le repertoire wordpress
-    shutil.rmtree(wpdir,'ignore_errors')    
+    # supprime le repertoire wordpress
+    shutil.rmtree(wpdir, True)
     print("Téléchargement")
-    #lance le telechargement
+    # lance le telechargement
     url = 'https://wordpress.org/latest.tar.gz'
-    tarwpname = wget.download(url,tempdir)
+    tarwpname = wget.download(url, tempdir)
     print("")
     print("Décompactage")
     tarwp = tarfile.open(tarwpname)
     tarwp.extractall("./")
-    tarwp.close
+    tarwp.close()
     print("Fin de téléchargement et décompactage")
     verif_free_space(wpdir)
 
-def backupsites(bkupdir,siteslist):
+
+def backupsites(bkupdir, siteslist):
     print('----')
     today = datetime.date.today()
     tod = today.strftime('%d-%m-%Y')
-    print("Début de sauvegarde du "+tod)
-    #verif taille dispo suffisante
+    print("Début de sauvegarde du " + tod)
+    # verif taille dispo suffisante
     freebk = verif_free_space(bkupdir)
     usedsites = 0
     for site in siteslist:
         src = siteslist[site]['chem']
         usedsites += verif_taille_sites(src)
-    if usedsites < freebk :
+    if usedsites < freebk:
         print("Espace suffisant pour la sauvegarde.")
     else:
         print("Espace insuffisant pour la sauvegarde, risque de crash. Sortie du script !")
         sys.exit()
-    newbkup = os.path.join(bkupdir,tod)
-    while os.path.isdir(newbkup)==True:
-        newbkup = newbkup+"i"
+    newbkup = os.path.join(bkupdir, tod)
+    while os.path.isdir(newbkup) == True:
+        newbkup = newbkup + "i"
     os.mkdir(newbkup)
     for site in siteslist:
-        print("Sauvegarde du site",site)
+        print("Sauvegarde du site", site)
         src = siteslist[site]['chem']
-        print('src ',src)
-        dest = os.path.join(newbkup,siteslist[site]['name'])
-        print('dest ',dest)
-        shutil.copytree(src,dest)
-        print("Copie du site ",siteslist[site]['name']," terminée.")
+        print('src ', src)
+        dest = os.path.join(newbkup, siteslist[site]['name'])
+        print('dest ', dest)
+        shutil.copytree(src, dest)
+        print("Copie du site ", siteslist[site]['name'], " terminée.")
     print("Sauvegarde des bases de données.")
     for site in siteslist:
-        print("Sauvegarde de la bdd du site",siteslist[site]['name'])
-        dumpfile = os.path.join(newbkup,siteslist[site]['name']+'.sql')
+        print("Sauvegarde de la bdd du site", siteslist[site]['name'])
+        dumpfile = os.path.join(newbkup, siteslist[site]['name'] + '.sql')
         if siteslist[site]['pwbdd'] == '':
-            cmddump = '/usr/bin/mysqldump -h '+siteslist[site]['srvbdd']+' -u '+siteslist[site]['usrbdd']+' '+siteslist[site]['bdd']+' >'+dumpfile
+            cmddump = '/usr/bin/mysqldump -h ' + siteslist[site]['srvbdd'] + ' -u ' + siteslist[site]['usrbdd'] + ' ' + \
+                      siteslist[site]['bdd'] + ' >' + dumpfile
         else:
-            cmddump = '/usr/bin/mysqldump -h '+siteslist[site]['srvbdd']+' -u '+siteslist[site]['usrbdd']+' -p'+siteslist[site]['pwbdd']+' '+siteslist[site]['bdd']+' >'+dumpfile
+            cmddump = '/usr/bin/mysqldump -h ' + siteslist[site]['srvbdd'] + ' -u ' + siteslist[site][
+                'usrbdd'] + ' -p' + siteslist[site]['pwbdd'] + ' ' + siteslist[site]['bdd'] + ' >' + dumpfile
         os.popen(cmddump)
     print("Fin de sauvegarde.")
     verif_free_space(bkupdir)
 
-def restore(backupdir,listeSites):
+
+def restore(backupdir, listeSites):
     print('----')
     print("Restauration des sites")
     i = 1
     siterest = []
     for site in listeSites:
-        print(i,"-",listeSites[site]['name'])
+        print(i, "-", listeSites[site]['name'])
         siterest.append(listeSites[site]['name'])
         i += 1
     print("")
     numsit = input("Quel site souhaitez vous restaurer (numéro) ? ")
-    print("Site à restaurer : ", siterest[int(numsit)-1])
-    sitearestaurer = listeSites[siterest[int(numsit)-1]]
+    print("Site à restaurer : ", siterest[int(numsit) - 1])
+    sitearestaurer = listeSites[siterest[int(numsit) - 1]]
     if sitearestaurer == {}:
         print("Problème, pas de site trouvé.")
         sys.exit()
-    #print(sitearestaurer)
+    # print(sitearestaurer)
     i = 1
     lchem = []
     for root, dirs, files in os.walk(backupdir):
         for rep in dirs:
             if rep == sitearestaurer['name']:
-                print(i,"-",os.path.join(root,rep))
-                lchem.append(os.path.join(root,rep))
+                print(i, "-", os.path.join(root, rep))
+                lchem.append(os.path.join(root, rep))
                 i += 1
     print("")
-    if lchem == []:
+    if not lchem:
         print("Aucune version de sauvegarde trouvée pour ce site. Fin du script.")
         sys.exit()
 
     numver = input("Quel version souhaitez-vous restaurer (numéro) ? ")
-    if os.path.isdir(lchem[int(numver)-1]) == False:
+    if not os.path.isdir(lchem[int(numver) - 1]):
         print("Pas de sauvegarde trouvée.")
         sys.exit()
-    
-    src = lchem[int(numver)-1]
-    print("Version à restaurer : ",src)
+
+    src = lchem[int(numver) - 1]
+    print("Version à restaurer : ", src)
     dest = sitearestaurer['chem']
-    print("Chemin cible : ",dest)
+    print("Chemin cible : ", dest)
     print("Suppression du dossier wordpress du site")
-    if os.path.isdir(dest)==True:
-        shutil.rmtree(dest,'ignore_errors')
+    if os.path.isdir(dest):
+        shutil.rmtree(dest, True)
         print("Répertoire destination supprimé")
     print("Restauration des fichiers à partir de la sauvegarde")
-    shutil.copytree(src,dest)
+    shutil.copytree(src, dest)
     print("Restauration des droits sur le wp-content")
-    newwpcont = os.path.join(listeSites[site]['chem'],'wordpress/wp-content')
-    print("Répertoire wp-content : ",newwpcont)
+    newwpcont = os.path.join(dest, 'wordpress/wp-content')
+    print("Répertoire wp-content : ", newwpcont)
     for root, dirs, files in os.walk(newwpcont):
         for rep in dirs:
-            os.chown(os.path.join(root,rep),33,33)
+            os.chown(os.path.join(root, rep), 33, 33)
         for fic in files:
-            os.chown(os.path.join(root,fic),33,33)
-    os.chown(newwpcont,33,33)
+            os.chown(os.path.join(root, fic), 33, 33)
+    os.chown(newwpcont, 33, 33)
     print("Restauration de la base de données")
     lstsrc = src.split('/')
     repsrc = "/".join(lstsrc[0:-1])
-    sqlf = os.path.join(repsrc,sitearestaurer['name']+".sql")
-    if os.path.isfile(sqlf) == False:
+    sqlf = os.path.join(repsrc, sitearestaurer['name'] + ".sql")
+    if not os.path.isfile(sqlf):
         print("Pas de dump sql trouvé.")
         sys.exit()
-    print("Fichier dump utilisé : ",sqlf)
+    print("Fichier dump utilisé : ", sqlf)
     if sitearestaurer['pwbdd'] == '':
-        cmdtxt = '/usr/bin/mysql -h '+sitearestaurer['srvbdd']+' -u '+sitearestaurer['usrbdd']+' '+sitearestaurer['bdd']+' <'+sqlf
+        cmdtxt = '/usr/bin/mysql -h ' + sitearestaurer['srvbdd'] + ' -u ' + sitearestaurer['usrbdd'] + ' ' + \
+                 sitearestaurer['bdd'] + ' <' + sqlf
     else:
-        cmdtxt = '/usr/bin/mysql -h '+sitearestaurer['srvbdd']+' -u '+sitearestaurer['usrbdd']+' -p'+sitearestaurer['pwbdd']+' '+sitearestaurer['bdd']+' <'+sqlf
+        cmdtxt = '/usr/bin/mysql -h ' + sitearestaurer['srvbdd'] + ' -u ' + sitearestaurer['usrbdd'] + ' -p' + \
+                 sitearestaurer['pwbdd'] + ' ' + sitearestaurer['bdd'] + ' <' + sqlf
     os.popen(cmdtxt)
     print("Restauration de la base de données ok.")
     print("Fin de restauration.")
+
 
 def rmoldf(listeSites):
     print('----')
     print("Suppression des dossiers .old")
     for site in listeSites:
-        chemrepold = os.path.join(listeSites[site]['chem'],'wordpress.old')
-        print("Suppression du dossier : ",chemrepold)
-        if os.path.isdir(chemrepold)==False:
+        chemrepold = os.path.join(listeSites[site]['chem'], 'wordpress.old')
+        print("Suppression du dossier : ", chemrepold)
+        if not os.path.isdir(chemrepold):
             print("Le répertoire n'existe pas !")
         else:
-            shutil.rmtree(chemrepold,'ignore_errors')
+            shutil.rmtree(chemrepold, True)
             print("Répertoire supprimé.")
     print("Fin de suppression des dossiers .old")
+
 
 def verif_free_space(racine):
     print('----')
     stat = shutil.disk_usage(racine)
     freespace = stat.free
-    freespacek = freespace/1024
-    freespacem = freespacek/1024
-    freespaceg = freespacem/1024
+    freespacek = freespace / 1024
+    freespacem = freespacek / 1024
+    freespaceg = freespacem / 1024
     if freespaceg > 1:
-        print("Espace libre dans "+racine+" : ",'%.2f' %freespaceg," Go")
+        print("Espace libre dans " + racine + " : ", '%.2f' % freespaceg, " Go")
     elif freespacem > 1:
-        print("Espace libre dans "+racine+" : ",'%.2f' %freespacem," Mo")
-    elif freespacek > 1 :
-        print("Attention espace libre dans "+racine+" : ",'%.2f' %freespacek," ko !!!!!!!!!!!")
-    elif freespace > 1 :
-        print("Attention espace libre dans "+racine+" : ",'%.2f' %freespace," octets !!!!!!!")
+        print("Espace libre dans " + racine + " : ", '%.2f' % freespacem, " Mo")
+    elif freespacek > 1:
+        print("Attention espace libre dans " + racine + " : ", '%.2f' % freespacek, " ko !!!!!!!!!!!")
+    elif freespace > 1:
+        print("Attention espace libre dans " + racine + " : ", '%.2f' % freespace, " octets !!!!!!!")
     return freespace
 
+
 def verif_taille_sites(racine):
-    #verifie la taille occupée par les sites pour assurer les sauvegardes
+    # verifie la taille occupée par les sites pour assurer les sauvegardes
     sitespace = 0
     for root, dirs, files in os.walk(racine):
         sitespace += sum(os.path.getsize(os.path.join(root, name)) for name in files)
-    sitespacek = sitespace/1024
-    sitespacem = sitespacek/1024
-    sitespaceg = sitespacem/1024
+    sitespacek = sitespace / 1024
+    sitespacem = sitespacek / 1024
+    sitespaceg = sitespacem / 1024
     if sitespaceg > 1:
-        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespaceg," Go")
+        print("Espace utilisé dans " + racine + " : ", '%.2f' % sitespaceg, " Go")
     elif sitespacem > 1:
-        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespacem," Mo")
-    elif sitespacek > 1 :
-        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespacek," ko")
-    elif sitespace > 1 :
-        print("Espace utilisé dans "+racine+" : ",'%.2f' %sitespace," octets")
+        print("Espace utilisé dans " + racine + " : ", '%.2f' % sitespacem, " Mo")
+    elif sitespacek > 1:
+        print("Espace utilisé dans " + racine + " : ", '%.2f' % sitespacek, " ko")
+    elif sitespace > 1:
+        print("Espace utilisé dans " + racine + " : ", '%.2f' % sitespace, " octets")
     return sitespace
 
-def updateWP(listeSites,racine):
+
+def updateWP(listeSites, racine):
     print('++++----++++')
     print('Début de mise à jour des sites')
     print('++++----++++')
     for site in listeSites:
         print('============')
-        print('Mise à jour du site',listeSites[site]['name'])
+        print('Mise à jour du site', listeSites[site]['name'])
         print('============')
-        src = os.path.join(listeSites[site]['chem'],'wordpress')
-        dest = os.path.join(listeSites[site]['chem'],'wordpress.old')
+        src = os.path.join(listeSites[site]['chem'], 'wordpress')
+        dest = os.path.join(listeSites[site]['chem'], 'wordpress.old')
         print('Conserve le site en .old')
         print(src)
         print(dest)
-        shutil.move(src,dest)
+        shutil.move(src, dest)
         print('--')
-        newwp = os.path.join(racine,'wordpress')
-        destwp = os.path.join(listeSites[site]['chem'],'wordpress')
+        newwp = os.path.join(racine, 'wordpress')
+        destwp = os.path.join(listeSites[site]['chem'], 'wordpress')
         print('Copie le nouveau wordpress')
         print(newwp)
         print(destwp)
-        shutil.copytree(newwp,destwp)
+        shutil.copytree(newwp, destwp)
         print('--')
         print("Copie l'ancien wp-config.php")
-        wpconf = os.path.join(listeSites[site]['chem'],'wordpress.old/wp-config.php')
-        newwpconf = os.path.join(listeSites[site]['chem'],'wordpress/wp-config.php')
+        wpconf = os.path.join(listeSites[site]['chem'], 'wordpress.old/wp-config.php')
+        newwpconf = os.path.join(listeSites[site]['chem'], 'wordpress/wp-config.php')
         print(wpconf)
         print(newwpconf)
-        shutil.copy2(wpconf,newwpconf)
+        shutil.copy2(wpconf, newwpconf)
         print('--')
         print("Copie l'ancien wp-content")
-        wpcont = os.path.join(listeSites[site]['chem'],'wordpress.old/wp-content')
-        newwpcont = os.path.join(listeSites[site]['chem'],'wordpress/wp-content')
+        wpcont = os.path.join(listeSites[site]['chem'], 'wordpress.old/wp-content')
+        newwpcont = os.path.join(listeSites[site]['chem'], 'wordpress/wp-content')
         print(wpcont)
         print(newwpcont)
-        #supprime l'ancien wp-content
-        shutil.rmtree(newwpcont,'ignore_errors')
-        #copie l'ancien wp-content dans le nouveau dossier wordpress
-        shutil.copytree(wpcont,newwpcont)
+        # supprime l'ancien wp-content
+        shutil.rmtree(newwpcont, True)
+        # copie l'ancien wp-content dans le nouveau dossier wordpress
+        shutil.copytree(wpcont, newwpcont)
         print('--')
-        print("Remet les droits sur le wp-content : ",newwpcont)
+        print("Remet les droits sur le wp-content : ", newwpcont)
         print(newwpcont)
         for root, dirs, files in os.walk(newwpcont):
             for rep in dirs:
-                os.chown(os.path.join(root,rep),33,33)
+                os.chown(os.path.join(root, rep), 33, 33)
             for fic in files:
-                os.chown(os.path.join(root,fic),33,33)
-        os.chown(newwpcont,33,33)
+                os.chown(os.path.join(root, fic), 33, 33)
+        os.chown(newwpcont, 33, 33)
         print('--')
-        urlupdate = listeSites[site]['url']+'/wordpress/wp-admin/upgrade.php'
-        print("Mise à jour de la base de donnée sur",urlupdate)
+        urlupdate = listeSites[site]['url'] + '/wordpress/wp-admin/upgrade.php'
+        print("Mise à jour de la base de donnée sur", urlupdate)
         cont = input('Souhaitez-vous continuer y/N ? ')
         if cont != 'y':
             print('----')
             print('Arrêt anticipé du script')
             sys.exit(0)
+
 
 def main(argv):
     timedeb = datetime.datetime.today()
@@ -339,18 +357,18 @@ def main(argv):
     print(time)
     racine = os.getcwd()
     verif_free_space(racine)
-    #prepare l'arbo
+    # prepare l'arbo
     ##chemins
-    fptemp = os.path.join(racine,'temp')
-    fpwordpress = os.path.join(racine,'wordpress')
-    fpbackup = os.path.join(racine,'backup')
-    #verif espace dans backup
+    fptemp = os.path.join(racine, 'temp')
+    fpwordpress = os.path.join(racine, 'wordpress')
+    fpbackup = os.path.join(racine, 'backup')
+    # verif espace dans backup
     verif_free_space(fpbackup)
-    #supprime et recree le repertoire temp
-    shutil.rmtree(fptemp,'ignore_errors')
+    # supprime et recree le repertoire temp
+    shutil.rmtree(fptemp, True)
     os.mkdir(fptemp)
-    #cree le repertoire backup s'il n'existe pas
-    if os.path.isdir(fpbackup)==False:
+    # cree le repertoire backup s'il n'existe pas
+    if os.path.isdir(fpbackup) == False:
         os.mkdir(fpbackup)
     tous = 0
     menag = False
@@ -359,19 +377,20 @@ def main(argv):
     rmold = False
     updatew = False
     resto = False
-    sitesFile = os.path.join(racine,'sites.conf')
-    
+    sitesFile = os.path.join(racine, 'sites.conf')
+
     try:
-        opts, args = getopt.getopt(argv, "hf:acbdour", ["help", "file=","all","clean","backup","download","old","update","restore"])
+        opts, args = getopt.getopt(argv, "hf:acbdour",
+                                   ["help", "file=", "all", "clean", "backup", "download", "old", "update", "restore"])
     except getopt.GetoptError:
-        usage()                       
+        usage()
         sys.exit(2)
-    for opt, arg in opts:             
-        if opt in ("-h", "--help"):   
-            usage()                   
-            sys.exit()                
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            usage()
+            sys.exit()
         elif opt in ("-f", "--file"):
-            sitesFile = os.path.join(racine,arg)
+            sitesFile = os.path.join(racine, arg)
         elif opt in ("-a", "--all"):
             tous = 1
         elif opt in ("-c", "--clean"):
@@ -387,7 +406,7 @@ def main(argv):
         elif opt in ("-r", "--restore"):
             resto = True
 
-    #lecture du fichier de conf des sites
+    # lecture du fichier de conf des sites
     print('----')
     if tous == 1:
         sites = ConfigObj(sitesFile)
@@ -396,14 +415,14 @@ def main(argv):
         sites = init_sites(sitesFile)
         print("Les sites pris en compte sont les suivants :")
         for site in sites:
-            print("- ",sites[site]['url'])
+            print("- ", sites[site]['url'])
     if downloadw:
-        downloadWP(fptemp,fpwordpress)
-    compare_versions(sites,racine)
+        downloadWP(fptemp, fpwordpress)
+    compare_versions(sites, racine)
     if menag:
         menage(fpbackup)
     if backups:
-        backupsites(fpbackup,sites)
+        backupsites(fpbackup, sites)
     if rmold:
         rmoldf(sites)
     if updatew:
@@ -414,16 +433,17 @@ def main(argv):
             sys.exit(0)
         else:
             print('mise à jour')
-            updateWP(sites,racine)
+            updateWP(sites, racine)
     if resto:
-        restore(fpbackup,sites)
+        restore(fpbackup, sites)
     print('----')
     timefin = datetime.datetime.today()
     time = timefin.strftime('%d-%m-%Y %H:%M:%S')
     print(time)
     duree = timefin - timedeb
-    print("Durée d'exécution : ",duree.seconds," s")
+    print("Durée d'exécution : ", duree.seconds, " s")
     print("Fin du script.")
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
